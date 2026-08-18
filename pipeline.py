@@ -1,8 +1,8 @@
 # pipeline.py
 from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
-from pyspark.sql.types import DoubleType
 from google.cloud import bigquery
+from quality_checks import run_quality_checks
 
 # 1. Iniciar Spark
 spark = SparkSession.builder \
@@ -13,9 +13,10 @@ spark = SparkSession.builder \
 df = spark.read.csv("data/telecom_data.csv", header=True, inferSchema=True)
 print(f"Records extracted: {df.count()}")
 
-# Fix: castear TotalCharges a Double (viene como string con espacios)
-df = df.withColumn("TotalCharges",
-    F.col("TotalCharges").cast(DoubleType()))
+df = df.withColumn(
+    "TotalCharges",
+    F.expr("try_cast(trim(TotalCharges) as double)")
+)
 
 # 3. TRANSFORM — Limpiar y enriquecer
 df_transformed = df \
@@ -32,19 +33,16 @@ df_transformed = df \
         .otherwise("LOW")
     )
 
-# 4. Data Quality Check
-total = df.count()
-nulls = df.filter(F.col("TotalCharges").isNull()).count()
-clean = total - nulls
-print(f"Data quality: {clean}/{total} records passed validation ({round(clean/total*100, 2)}%)")
+# 4. DATA QUALITY CHECKS — Great Expectations
+df_pandas = df_transformed.toPandas()
+df_pandas["tenure"] = df_pandas["tenure"].astype("float64")
+run_quality_checks(df_pandas)
 
 # 5. LOAD — Guardar a Parquet (intermedio)
 df_transformed.write.mode("overwrite").parquet("output/transformed/")
 print("Parquet saved successfully.")
 
 # 6. LOAD — BigQuery
-df_pandas = df_transformed.toPandas()
-
 client = bigquery.Client.from_service_account_json("service_account.json")
 table_id = "mdlr-504420.telecom_analytics.churn_analysis"
 
