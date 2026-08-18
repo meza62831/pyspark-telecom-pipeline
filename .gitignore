@@ -1,0 +1,20 @@
+# Credentials — NEVER commit
+service_account.json
+*.json
+
+# Data files
+data/
+
+# Virtual environment
+venv/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Output
+output/
+
+# macOS
+.DS_Store
