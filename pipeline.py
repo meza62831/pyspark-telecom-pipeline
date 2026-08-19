@@ -33,7 +33,7 @@ df_transformed = df \
         .otherwise("LOW")
     )
 
-# 4. DATA QUALITY CHECKS — Great Expectations
+# 4. DATA QUALITY CHECKS — Pandera (9 reglas de validación)
 df_pandas = df_transformed.toPandas()
 df_pandas["tenure"] = df_pandas["tenure"].astype("float64")
 run_quality_checks(df_pandas)
